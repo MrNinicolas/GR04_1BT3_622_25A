@@ -32,6 +32,12 @@
                         <i class="fas fa-handshake"></i> Offers
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="${pageContext.request.contextPath}/TradeDeliveryController?route=listDeliveries">
+                        <i class="fas fa-truck"></i> My Deliveries
+                    </a>
+                </li>
             </ul>
         </div>
 
@@ -67,8 +73,12 @@
                     <div class="col-md-6 mb-3">
                         <div class="card">
                             <div class="card-body">
-                                <h5 class="card-title">Offered Products: ${offer.offeredProducts}</h5>
-                                <p class="card-text">Requested Product: ${offer.productToOffer}</p>
+                                <h5 class="card-title">Offered Products:
+                                    <c:forEach var="product" items="${offer.offeredProducts}">
+                                        ${product.title} <br>
+                                    </c:forEach>
+                                </h5>
+                                <p class="card-text">Requested Product: ${offer.productToOffer.title}</p>
                                 <form action="RespondOfferController" method="post">
                                     <input type="hidden" name="route" value="respond">
                                     <input type="hidden" name="offerId" value="${offer.idOffer}">
@@ -86,6 +96,7 @@
         </c:otherwise>
     </c:choose>
 </main>
+
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

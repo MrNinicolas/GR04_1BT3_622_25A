@@ -2,82 +2,108 @@ package controllers;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
-import model.dao.OfferDAO;
-import model.entities.Offer;
+import jakarta.servlet.http.*;
+
 import model.entities.User;
+import model.entities.Offer;
+import model.service.OfferService;
+import model.service.OfferService.ResponseMessage;
 
 import java.io.IOException;
-import java.util.List;
 
 @WebServlet("/RespondOfferController")
 public class RespondOfferController extends HttpServlet {
 
-    private final OfferDAO offerDAO = new OfferDAO();
+    private final OfferService offerService = new OfferService();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
         String route = req.getParameter("route");
-        if ("list".equals(route)) {
-            this.listOffers(req, resp);
-        } else {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid route");
+        if (route == null) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Se requiere un parámetro 'route'.");
+            return;
+        }
+
+        switch (route) {
+            case "list" -> handleListOffers(req, resp);
+            default -> resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Ruta GET desconocida: " + route);
         }
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String status = req.getParameter("status");
-        int offerId = Integer.parseInt(req.getParameter("offerId"));
-        HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
-
-        Offer offer = offerDAO.findById(offerId);
-        if (offer == null) {
-            req.setAttribute("messageType", "error");
-            req.setAttribute("message", "Offer not found.");
-        } else {
-            // Actualizar el estado de la oferta
-            offer.setStatus(status);
-            offerDAO.update(offer);
-
-            // Configurar el mensaje basado en el estado
-            if ("accepted".equals(status)) {
-                req.setAttribute("messageType", "success");
-                req.setAttribute("message", "¡Felicidades por tu intercambio!");
-            } else if ("rejected".equals(status)) {
-                req.setAttribute("messageType", "warning");
-                req.setAttribute("message", "Lo siento, tu oferta ha sido rechazada.");
-            } else {
-                req.setAttribute("messageType", "error");
-                req.setAttribute("message", "Invalid status.");
-            }
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        String route = req.getParameter("route");
+        if (route == null) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Se requiere un parámetro 'route'.");
+            return;
         }
 
-        // Actualizar la lista de ofertas pendientes
-        List<Offer> offers = offerDAO.findPendingOffersByUserId(user.getIdUser());
-        req.setAttribute("offers", offers);
+        switch (route) {
+            case "respond" -> handleRespondOffer(req, resp);
+            default -> resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Ruta POST desconocida: " + route);
+        }
+    }
 
-        // Regresar a la misma página con las ofertas actualizadas
+    // Mostrar las ofertas pendientes del usuario
+    private void handleListOffers(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        User user = getLoggedUser(req, resp);
+        if (user == null) return;
+
+        offerService.loadPendingOffers(user.getIdUser(), req);
         req.getRequestDispatcher("jsp/OFFERS.jsp").forward(req, resp);
     }
 
-
-
-    private void listOffers(HttpServletRequest req, HttpServletResponse resp)
+    // Responder una oferta: aceptar o rechazar
+    private void handleRespondOffer(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
+        User user = getLoggedUser(req, resp);
+        if (user == null) return;
 
-        if (user != null) {
-            List<Offer> offers = offerDAO.findPendingOffersByUserId(user.getIdUser());
-            req.setAttribute("offers", offers);
-            req.getRequestDispatcher("jsp/OFFERS.jsp").forward(req, resp);
+        String status = req.getParameter("status");
+        String offerIdStr = req.getParameter("offerId");
+
+        ResponseMessage responseMessage;
+
+        if (status == null || offerIdStr == null) {
+            responseMessage = new ResponseMessage("error", "Datos incompletos para procesar la oferta.");
         } else {
-            resp.sendRedirect("LoginController?route=enter");
+            try {
+                int offerId = Integer.parseInt(offerIdStr);
+                Offer offer = offerService.findById(offerId);
+
+                if (offer == null || offer.getOfferedByUser() == null || offer.getOfferedByUser().getIdUser() != user.getIdUser())
+                {
+                    responseMessage = new ResponseMessage("error", "Oferta no encontrada o no autorizada.");
+                } else {
+                    responseMessage = offerService.processOfferStatus(offer, status);
+                }
+
+            } catch (NumberFormatException e) {
+                responseMessage = new ResponseMessage("error", "ID de oferta inválido.");
+            }
         }
+
+        // Mostrar mensaje de respuesta
+        req.setAttribute("messageType", responseMessage.type());
+        req.setAttribute("message", responseMessage.message());
+
+        // Recargar lista de ofertas pendientes
+        offerService.loadPendingOffers(user.getIdUser(), req);
+        req.getRequestDispatcher("jsp/OFFERS.jsp").forward(req, resp);
+    }
+
+    // Obtener usuario en sesión
+    private User getLoggedUser(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        HttpSession session = req.getSession(false); // evita crear una nueva sesión si no existe
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
+
+        if (user == null) {
+            resp.sendRedirect("LoginController?route=enter");
+            return null;
+        }
+        return user;
     }
 }

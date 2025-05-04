@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.EntityTransaction;
 import model.entities.Offer;
+import model.service.ProductService;
 
 import java.util.Collections;
 import java.util.List;
@@ -84,13 +85,12 @@ public class OfferDAO extends GenericDAO<Offer> {
 
     public boolean confirmDeliveryAndUpdateOffer(Offer offer) {
         EntityManager em = getEntityManager();
+        ProductService productService = new ProductService();
 
         try {
             em.getTransaction().begin();
 
-            ProductDAO productDAO = new ProductDAO();
-            productDAO.updateProductAvailability(offer.getOfferedProducts(), false);
-            productDAO.updateProductAvailability(Collections.singletonList(offer.getProductToOffer()), false);
+            productService.disableProductsInOffer(offer);
 
             em.getTransaction().commit();
             return true;
@@ -102,7 +102,6 @@ public class OfferDAO extends GenericDAO<Offer> {
             em.close();
         }
     }
-
 
 
     // Método para cambiar el estado de la oferta a "pending"

@@ -8,6 +8,48 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4" style="position: sticky; top: 0; z-index: 1030;">
+    <div class="container-fluid">
+        <!-- Inicio: Sección izquierda -->
+        <div class="d-flex">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link" href="${pageContext.request.contextPath}/ManageProductsController?route=list&view=home">
+                        <i class="fas fa-home"></i> Home
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="${pageContext.request.contextPath}/ManageProductsController?route=list&view=user">
+                        <i class="fas fa-box"></i> My Products
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="${pageContext.request.contextPath}/RespondOfferController?route=list">
+                        <i class="fas fa-handshake"></i> Offers
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="${pageContext.request.contextPath}/TradeDeliveryController?route=listDeliveries">
+                        <i class="fas fa-truck"></i> My Deliveries
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Fin: Sección derecha -->
+        <div class="d-flex">
+            <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link text-danger" href="${pageContext.request.contextPath}/LoginController?route=logOut">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
 <main class="container my-4">
     <h1>Respond to Offer</h1>
     <c:if test="${not empty offer}">

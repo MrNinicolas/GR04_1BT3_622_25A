@@ -38,6 +38,12 @@
                         <i class="fas fa-handshake"></i> Offers
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link"
+                       href="${pageContext.request.contextPath}/TradeDeliveryController?route=listDeliveries">
+                        <i class="fas fa-truck"></i> My Deliveries
+                    </a>
+                </li>
             </ul>
         </div>
 

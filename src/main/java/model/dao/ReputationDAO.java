@@ -25,20 +25,4 @@ public class ReputationDAO extends GenericDAO<Reputation> {
     }
 
 
-    public void save(Reputation reputation) {
-        try (EntityManager em = getEntityManager()) {
-            em.getTransaction().begin();
-
-            if (reputation.getId() == 0) {
-                em.persist(reputation);
-            } else {
-                em.merge(reputation);
-            }
-
-            em.getTransaction().commit();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
 }

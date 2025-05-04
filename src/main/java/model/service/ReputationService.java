@@ -15,12 +15,20 @@ public class ReputationService {
     public void saveRating(User ratedUser, int score) {
         Reputation reputation = reputationDAO.findByUserId(ratedUser.getIdUser());
         if (reputation == null) {
-            reputation = new Reputation(ratedUser);
+            reputation = createReputationForUser(ratedUser, score);
+            reputationDAO.create(reputation);
+        } else {
+            reputation.addRating(score);
+            reputationDAO.update(reputation);
         }
-
-        reputation.addRating(score);
-        reputationDAO.save(reputation);
     }
+
+    private Reputation createReputationForUser(User ratedUser, int score) {
+        Reputation reputation = new Reputation(ratedUser);
+        reputation.addRating(score);
+        return reputation;
+    }
+
 
 
     public Reputation getReputation(User user) {

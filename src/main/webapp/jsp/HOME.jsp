@@ -107,7 +107,7 @@
                 </c:forEach>
             </div>
             <c:if test="${empty products}">
-                <div class="alert alert-warning text-center">You have not created any product.</div>
+                <div class="alert alert-warning text-center">There are currently no products to display.</div>
             </c:if>
         </div>
     </div>

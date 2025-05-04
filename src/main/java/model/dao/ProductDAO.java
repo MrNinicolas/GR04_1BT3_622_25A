@@ -11,7 +11,7 @@ public class ProductDAO extends GenericDAO<Product> {
         super(Product.class);
     }
 
-    public List<Product> findProductsByIdUser(int idUser) {
+    public List<Product> findProductsByUserId(int idUser) {
         try (EntityManager em = getEntityManager()) {
             String jpql = "SELECT p FROM Product p WHERE p.user.idUser = :idUser";
             return em.createQuery(jpql, Product.class)
@@ -22,7 +22,7 @@ public class ProductDAO extends GenericDAO<Product> {
         }
     }
 
-    public List<Product> findAvailableProductsByIdUser(int idUser) {
+    public List<Product> findAvailableProductsByUserId(int idUser) {
         try (EntityManager em = getEntityManager()) {
             String jpql = "SELECT p FROM Product p WHERE p.user.idUser = :idUser AND p.isAvailable = true";
             return em.createQuery(jpql, Product.class)
@@ -33,18 +33,6 @@ public class ProductDAO extends GenericDAO<Product> {
         }
     }
 
-    public List<Product> findProductsToShow(int idUser) {
-        try (EntityManager em = getEntityManager()) {
-            String jpql = "SELECT p FROM Product p WHERE p.user.idUser != :idUser";
-            return em.createQuery(jpql, Product.class)
-                    .setParameter("idUser", idUser)
-                    .getResultList();
-        } catch (Exception e) {
-            return List.of();
-        }
-    }
-
-    /*Prueba de función para obtener el producto por ID*/
     public List<Product> findProductById(int idProduct) {
         try (EntityManager em = getEntityManager()) {
             String jpql = "SELECT p FROM Product p WHERE p.idProduct = :idProduct";
@@ -71,6 +59,17 @@ public class ProductDAO extends GenericDAO<Product> {
             if (em.getTransaction().isActive()) em.getTransaction().rollback();
             e.printStackTrace();
             return false;
+        }
+    }
+
+    public List<Product> findAvailableProductsExceptUser(int userId) {
+        try (EntityManager em = getEntityManager()) {
+            String jpql = "SELECT p FROM Product p WHERE p.user.idUser != :userId AND p.isAvailable = true";
+            return em.createQuery(jpql, Product.class)
+                    .setParameter("userId", userId)
+                    .getResultList();
+        } catch (Exception e) {
+            return List.of();
         }
     }
 }

@@ -10,15 +10,21 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import model.dao.ProductDAO;
 import model.entities.Product;
 import model.entities.User;
+import model.service.ProductService;
 
 @WebServlet("/ManageProductsController")
 public class ManageProductsController extends HttpServlet {
 
     @Serial
     private static final long serialVersionUID = 1L;
+
+    private final ProductService productService = new ProductService();
+
+    private ProductService getProductService() {
+        return productService;
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -64,17 +70,23 @@ public class ManageProductsController extends HttpServlet {
                 this.deleteProduct(req, resp);
                 break;
             case "accept":
-                this.accept(req, resp);
+                this.confirmRemove(req, resp);
                 break;
             default:
                 throw new IllegalArgumentException("Unknown route: " + route);
         }
     }
 
-    private void accept(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
+    private void addProduct(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        List<Product> products = getProductService().findProductsByUserId(getUser(req).getIdUser());
+        req.setAttribute("products", products);
+        req.setAttribute("route", "add");
+        req.getRequestDispatcher("jsp/MY_PRODUCT.jsp").forward(req, resp);
+    }
+
+    private void confirmRemove(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
         int idProduct = Integer.parseInt(req.getParameter("idProduct"));
-        ProductDAO productDAO = new ProductDAO();
-        if (productDAO.remove(idProduct)) {
+        if (getProductService().removeProduct(idProduct)) {
             req.setAttribute("messageType", "info");
             req.setAttribute("message", "Product deleted successfully.");
             req.getRequestDispatcher("ManageProductsController?route=list").forward(req, resp);
@@ -85,22 +97,11 @@ public class ManageProductsController extends HttpServlet {
         }
     }
 
-    private void addProduct(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
-        List<Product> products = new ProductDAO().findProductsByIdUser(user.getIdUser());
-        req.setAttribute("products", products);
-        req.setAttribute("route", "add");
-        req.getRequestDispatcher("jsp/MY_PRODUCT.jsp").forward(req, resp);
-    }
-
     private void deleteProduct(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
         int idProduct = Integer.parseInt(req.getParameter("idProduct"));
         HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
-        ProductDAO productDAO = new ProductDAO();
-        Product product = productDAO.findById(idProduct);
-        List<Product> products = productDAO.findProductsByIdUser(user.getIdUser());
+        Product product = getProductService().findProductById(idProduct);
+        List<Product> products = getProductService().findProductsByUserId(getUser(req).getIdUser());
 
         if (product != null) {
             req.setAttribute("product", product);
@@ -114,12 +115,10 @@ public class ManageProductsController extends HttpServlet {
 
     private void editProduct(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
         int idProduct = Integer.parseInt(req.getParameter("idProduct"));
-        ProductDAO productDAO = new ProductDAO();
-        Product product = productDAO.findById(idProduct);
+        Product product = getProductService().findProductById(idProduct);
 
-        List<Product> products = productDAO.findProductsByIdUser(user.getIdUser());
+        List<Product> products = getProductService().findProductsByUserId(getUser(req).getIdUser());
         req.setAttribute("products", products);
 
         if (product != null) {
@@ -132,76 +131,70 @@ public class ManageProductsController extends HttpServlet {
     }
 
     private void saveExistingProduct(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
-        ProductDAO productDAO = new ProductDAO();
         Product product = parseProductFromRequest(req);
-        // Solo actualizamos lo que viene del formulario
         product.setTitle(req.getParameter("txtTitle"));
         product.setDescription(req.getParameter("txtDescription"));
         product.setState(req.getParameter("txtState"));
 
-        if (productDAO.update(product)) {
-            req.setAttribute("messageType", "info");
-            req.setAttribute("message", "Product updated successfully.");
-        } else {
-            req.setAttribute("messageType", "error");
-            req.setAttribute("message", "Failed to update product.");
-        }
-
-        req.getRequestDispatcher("ManageProductsController?route=list").forward(req, resp);
+        processProductSave(req, resp, product, true);
     }
-
 
     private void saveNewProduct(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
         Product product = parseProductFromRequest(req);
-        ProductDAO productDAO = new ProductDAO();
-        if (productDAO.create(product)) {
-            req.setAttribute("messageType", "info");
-            req.setAttribute("message", "Product created successfully.");
-            req.getRequestDispatcher("ManageProductsController?route=list").forward(req, resp);
-        } else {
-            req.setAttribute("messageType", "error");
-            req.setAttribute("message", "Failed to create product.");
-            req.getRequestDispatcher("ManageProductsController?route=list").forward(req, resp);
-        }
+        processProductSave(req, resp, product, false);
+    }
+
+    private void processProductSave(HttpServletRequest req, HttpServletResponse resp, Product product, boolean isUpdate) throws IOException, ServletException {
+        boolean success = isUpdate ? getProductService().updateProduct(product) : getProductService().createProduct(product);
+
+        String messageType = success ? "info" : "error";
+        String message = success
+                ? (isUpdate ? "Product updated successfully." : "Product created successfully.")
+                : (isUpdate ? "Failed to update product." : "Failed to create product.");
+
+        setMessageAndForward(req, resp, messageType, message);
+    }
+
+    private void setMessageAndForward(HttpServletRequest req, HttpServletResponse resp, String messageType, String message) throws ServletException, IOException {
+        req.setAttribute("messageType", messageType);
+        req.setAttribute("message", message);
+        req.getRequestDispatcher("ManageProductsController?route=list").forward(req, resp);
     }
 
     private void viewProducts(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        ProductDAO productDAO = new ProductDAO();
-        HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
-        List<Product> products = productDAO.findProductsToShow(user.getIdUser());
+        List<Product> products = getProductService().findAvailableProductsExceptUser(getUser(req).getIdUser());
         req.setAttribute("products", products);
         req.getRequestDispatcher("jsp/HOME.jsp").forward(req, resp);
     }
 
-
     private void viewMyProducts(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
-        ProductDAO productDAO = new ProductDAO();
-        List<Product> products = productDAO.findProductsByIdUser(user.getIdUser());
+        List<Product> products = getProductService().findProductsByUserId(getUser(req).getIdUser());
         req.setAttribute("products", products);
         req.getRequestDispatcher("jsp/MY_PRODUCT.jsp").forward(req, resp);
     }
 
     private Product parseProductFromRequest(HttpServletRequest req) {
-        int idProduct = 0;
         String txtId = req.getParameter("txtIdProduct");
+        int idProduct = parseProductId(txtId);
+        String title = req.getParameter("txtTitle");
+        String description = req.getParameter("txtDescription");
+        String state = req.getParameter("txtState");
+        return new Product(idProduct, title, description, state, getUser(req));
+    }
 
-        if (txtId != null && !txtId.trim().isEmpty()) {
+    private static User getUser(HttpServletRequest req) {
+        HttpSession session = req.getSession();
+        return (User) session.getAttribute("user");
+    }
+
+    private int parseProductId(String idParam) {
+        if (idParam != null && !idParam.trim().isEmpty()) {
             try {
-                idProduct = Integer.parseInt(txtId);
+                return Integer.parseInt(idParam);
             } catch (NumberFormatException e) {
                 System.out.println("Error al convertir el ID: " + e.getMessage());
             }
         }
-
-        HttpSession session = req.getSession();
-        User user = (User) session.getAttribute("user");
-        String title = req.getParameter("txtTitle");
-        String description = req.getParameter("txtDescription");
-        String state = req.getParameter("txtState");
-
-        return new Product(idProduct, title, description, state, user);
+        return 0;
     }
 }

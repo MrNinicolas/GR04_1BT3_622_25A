@@ -32,8 +32,20 @@ public class TradeDeliveryController extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String route = req.getParameter("route");
+        this.route(req, resp);
+    }
 
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        this.route(req, resp);
+    }
+
+    private void route(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String route = req.getParameter("route");
+        if (route==null){
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing route parameter");
+            return;
+        }
         switch (route) {
             case "confirmDelivery":
                 this.confirmDelivery(req, resp);
@@ -44,18 +56,11 @@ public class TradeDeliveryController extends HttpServlet {
             case "rejectOffer":
                 this.rejectOffer(req, resp);
                 break;
+            case "listDeliveries":
+                this.listDeliveries(req, resp);
+                break;
             default:
                 resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-        }
-    }
-
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String route = req.getParameter("route");
-        if (route.equals("listDeliveries")) {
-            this.listDeliveries(req, resp);
-        } else {
-            resp.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
@@ -63,20 +68,12 @@ public class TradeDeliveryController extends HttpServlet {
         int offerId = Integer.parseInt(req.getParameter("offerId"));
         int score = Integer.parseInt(req.getParameter("score"));
 
-        OfferDAO offerService = new OfferDAO();
+        OfferService offerService = new OfferService();
         Offer offer = offerService.findById(offerId);
 
-        // Verificar que la oferta existe
         if (offer != null) {
-            User offeredByUser = offer.getOfferedByUser();
-
-            if (offeredByUser != null) {
-                ReputationService reputationService = new ReputationService();
-                reputationService.saveRating(offeredByUser, score); // Calificar al usuario que hizo la oferta
-                System.out.println("Estado antes de marcar como entregado: " + offer.getStatus());
-                offer.markAsDelivered(offeredByUser);
-                offerService.updateOffer(offer);
-                System.out.println("Estado después de marcar como entregado: " + offer.getStatus());
+            boolean success = offerService.rateOfferAndMarkDelivered(offer, score);
+            if (success) {
                 req.setAttribute("successMessage", "✅ Rating submitted successfully!");
             } else {
                 req.setAttribute("errorMessage", "⚠️ User who made the offer not found. Please try again.");
@@ -87,6 +84,8 @@ public class TradeDeliveryController extends HttpServlet {
 
         this.listDeliveries(req, resp);
     }
+
+
 
     private void listDeliveries(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         HttpSession session = req.getSession();
